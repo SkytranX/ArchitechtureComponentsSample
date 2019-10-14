@@ -11,7 +11,11 @@ import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.android.todolist.database.TaskDatabase;
+import com.example.android.todolist.database.TaskEntry;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
+
+import java.util.List;
 
 import static androidx.recyclerview.widget.DividerItemDecoration.VERTICAL;
 
@@ -23,6 +27,7 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.ItemC
     // Member variables for the adapter and RecyclerView
     private RecyclerView mRecyclerView;
     private TaskAdapter mAdapter;
+    private TaskDatabase mDB;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -76,10 +81,20 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.ItemC
                 startActivity(addTaskIntent);
             }
         });
+
+        mDB = TaskDatabase.getInstance(getApplicationContext());
+
     }
 
     @Override
     public void onItemClickListener(int itemId) {
         // Launch AddTaskActivity adding the itemId as an extra in the intent
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        List<TaskEntry> taskEntries = mDB.taskDAO().getAllTasks();
+        mAdapter.setTasks(taskEntries);
     }
 }
