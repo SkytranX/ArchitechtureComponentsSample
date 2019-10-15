@@ -10,6 +10,7 @@ import android.widget.RadioGroup;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.lifecycle.LiveData;
 import androidx.lifecycle.Observer;
+import androidx.lifecycle.ViewModelProviders;
 
 import com.example.android.todolist.database.TaskDatabase;
 import com.example.android.todolist.database.TaskEntry;
@@ -35,7 +36,7 @@ public class AddTaskActivity extends AppCompatActivity {
     RadioGroup mRadioGroup;
     Button mButton;
 
-    private TaskDatabase mOb;
+    private TaskDatabase mDb;
 
     private int mTaskId = DEFAULT_TASK_ID;
     private AppExecutors roomExecutor;
@@ -50,20 +51,19 @@ public class AddTaskActivity extends AppCompatActivity {
             mTaskId = savedInstanceState.getInt(INSTANCE_TASK_ID, DEFAULT_TASK_ID);
         }
 
-        mOb=TaskDatabase.getInstance(getApplicationContext());
+        mDb=TaskDatabase.getInstance(getApplicationContext());
         Intent intent = getIntent();
         if (intent != null && intent.hasExtra(EXTRA_TASK_ID)) {
             mButton.setText(R.string.update_button);
             if (mTaskId == DEFAULT_TASK_ID) {
                 // populate the UI
                 mTaskId=intent.getIntExtra(EXTRA_TASK_ID,0);
-                final LiveData<TaskEntry> taskEntry=mOb.taskDAO().getTaskById(mTaskId);
-                taskEntry.observe(this, new Observer<TaskEntry>() {
-                    @Override
-                    public void onChanged(TaskEntry entry) {
-                        taskEntry.removeObserver(this);
-                        populateUI(entry);
-                    }
+                ViewModelFactory viewModelFactory= new ViewModelFactory(mDb,mTaskId);
+                final AddTaskViewModel addTaskViewModel= ViewModelProviders.of(this,viewModelFactory).get(AddTaskViewModel.class);
+               //Possible Issue with observer entry
+                addTaskViewModel.getTaskEntryLiveData().observe(this, entry -> {
+                    addTaskViewModel.getTaskEntryLiveData().removeObserver(this::populateUI);
+                    populateUI(entry);
                 });
             }
         }
@@ -119,10 +119,10 @@ public class AddTaskActivity extends AppCompatActivity {
        AppExecutors.getInstance().getDiskIO().execute(() -> {
            if(mTaskId==DEFAULT_TASK_ID){
 
-               mOb.taskDAO().insert(taskEntry);
+               mDb.taskDAO().insert(taskEntry);
            } else {
                taskEntry.setId(mTaskId);
-               mOb.taskDAO().update(taskEntry);
+               mDb.taskDAO().update(taskEntry);
            }
 
            finish();
