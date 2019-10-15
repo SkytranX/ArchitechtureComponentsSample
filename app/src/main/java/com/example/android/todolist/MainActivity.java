@@ -2,10 +2,14 @@ package com.example.android.todolist;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.lifecycle.LiveData;
+import androidx.lifecycle.Observer;
+import androidx.lifecycle.ViewModelProviders;
 import androidx.recyclerview.widget.DividerItemDecoration;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
@@ -28,12 +32,14 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.ItemC
     private RecyclerView mRecyclerView;
     private TaskAdapter mAdapter;
     private TaskDatabase mDB;
+    private AppExecutors roomExecutor;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+        roomExecutor=AppExecutors.getInstance();
         // Set the RecyclerView to its corresponding view
         mRecyclerView = findViewById(R.id.recyclerViewTasks);
 
@@ -53,6 +59,11 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.ItemC
          An ItemTouchHelper enables touch behavior (like swipe and move) on each ViewHolder,
          and uses callbacks to signal when a user is performing these actions.
          */
+        mDB = TaskDatabase.getInstance(getApplicationContext());
+
+
+
+
         new ItemTouchHelper(new ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT | ItemTouchHelper.RIGHT) {
             @Override
             public boolean onMove(@NonNull RecyclerView recyclerView, @NonNull RecyclerView.ViewHolder viewHolder, @NonNull RecyclerView.ViewHolder target) {
@@ -63,6 +74,14 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.ItemC
             @Override
             public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int swipeDir) {
                 // Here is where you'll implement swipe to delete
+                List<TaskEntry> taskList=mAdapter.getTasks();
+                int position=viewHolder.getAdapterPosition();
+                roomExecutor.getDiskIO().execute(new Runnable() {
+                    @Override
+                    public void run() {
+                        mDB.taskDAO().delete(taskList.get(position));
+                    }
+                });
             }
         }).attachToRecyclerView(mRecyclerView);
 
@@ -82,19 +101,34 @@ public class MainActivity extends AppCompatActivity implements TaskAdapter.ItemC
             }
         });
 
-        mDB = TaskDatabase.getInstance(getApplicationContext());
-
+        refreshList();
     }
 
     @Override
     public void onItemClickListener(int itemId) {
         // Launch AddTaskActivity adding the itemId as an extra in the intent
+        Intent intent = new Intent(MainActivity.this,AddTaskActivity.class);
+        intent.putExtra(AddTaskActivity.EXTRA_TASK_ID,itemId);
+        startActivity(intent);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
-        List<TaskEntry> taskEntries = mDB.taskDAO().getAllTasks();
-        mAdapter.setTasks(taskEntries);
+
+    }
+
+    private void refreshList() {
+        Log.e(TAG, "Refresh Called: ");
+        MainViewModel viewModel= ViewModelProviders.of(this).get(MainViewModel.class);
+//        final LiveData<List<TaskEntry>> taskEntriesLiveData = mDB.taskDAO().getAllTasks();
+        viewModel.getLiveDataTasks().observe(this, new Observer<List<TaskEntry>>() {
+            @Override
+            public void onChanged(List<TaskEntry> taskEntries) {
+                Log.e(TAG, "Updating from view model " );
+                mAdapter.setTasks(taskEntries);
+            }
+        });
+
     }
 }

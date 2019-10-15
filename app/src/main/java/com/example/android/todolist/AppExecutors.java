@@ -5,9 +5,10 @@ import androidx.annotation.NonNull;
 
 import java.util.concurrent.Executor;
 import java.util.concurrent.Executors;
-import java.util.logging.Handler;
+import android.os.Handler;
 
-    //singleton class
+
+//singleton class
     public class AppExecutors {
         private  static final Object LOCK = new Object();
         private Executor diskIO;
@@ -45,12 +46,12 @@ import java.util.logging.Handler;
             return mainThread;
         }
 
-        private static class MainThreadExecutor implements Executor{
+        private static class MainThreadExecutor implements Executor {
             private Handler mainThreadHandler = new Handler(Looper.getMainLooper());
 
             @Override
-            public void execute(Runnable runnable) {
-                mainThreadHandler.post(command);
+            public void execute(@NonNull Runnable runnable) {
+                mainThreadHandler.post(runnable);
             }
         }
 
